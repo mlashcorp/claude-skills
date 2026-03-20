@@ -40,7 +40,7 @@ See [`plugins/notion-claude-integration/docs/SETUP.md`](plugins/notion-claude-in
 ## Requirements
 
 - Claude Code v2.1.80+, logged in with a claude.ai account
-- Notion paid plan (webhooks require a paid plan)
+- Notion account
 - GitHub account
 - `bun` and `cloudflared` (the setup script installs both)
 

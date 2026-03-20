@@ -46,7 +46,7 @@ comment.created webhook fires → Claude reads and acts on feedback
 - **Logged in with a claude.ai account** (not an API key — channels require claude.ai login)
 - **Bun** runtime — [bun.sh](https://bun.sh)
 - **Cloudflare Tunnel** (`cloudflared`) — [developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/)
-- **Notion paid plan** (webhooks are not available on the free tier)
+- **Notion account**
 - **GitHub account** with a repository for the project
 
 ---
