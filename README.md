@@ -10,7 +10,7 @@ A Claude Code plugin marketplace with skills for automating software development
 
 ## Plugins
 
-### notion-autotrader
+### notion-claude-integration
 
 Automates the full dev cycle from Notion tickets. Moving a ticket to **In Progress** triggers Claude to:
 - Create a feature branch
@@ -23,15 +23,17 @@ Comments on the Notion page go directly to Claude for feedback and revisions.
 
 **Install:**
 ```
-/plugin install notion-autotrader@notion-autotrader
+/plugin install notion-claude-integration@notion-claude-integration
 ```
 
-**After installing, run the setup script:**
+**After installing, run the interactive setup wizard:**
 ```bash
-bash ~/.claude/plugins/cache/notion-autotrader/notion-autotrader/*/scripts/setup.sh
+bash ~/.claude/plugins/cache/notion-claude-integration/notion-claude-integration/*/scripts/setup.sh
 ```
 
-See [`plugins/notion-autotrader/docs/SETUP.md`](plugins/notion-autotrader/docs/SETUP.md) for the full setup guide.
+The wizard installs `bun` and `cloudflared`, adds the required properties to your Notion database, guides you through webhook creation, and saves all credentials to your shell profile.
+
+See [`plugins/notion-claude-integration/docs/SETUP.md`](plugins/notion-claude-integration/docs/SETUP.md) for the full setup guide.
 
 ---
 

@@ -1,5 +1,5 @@
 {
-  "name": "notion-autotrader",
+  "name": "notion-claude-integration",
   "description": "Automates the full dev cycle from Notion. Moving a ticket to In Progress triggers Claude to branch, implement, test, open a PR, and update the ticket automatically. Requires setup — see docs/SETUP.md.",
   "version": "1.0.0",
   "mcpServers": {

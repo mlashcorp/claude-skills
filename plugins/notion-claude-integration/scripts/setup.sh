@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Setup script for notion-autotrader plugin.
+# Setup script for notion-claude-integration plugin.
 # Installs bun and cloudflared, and validates required env vars.
 # Run this once after installing the plugin.
 
@@ -15,7 +15,7 @@ warn() { echo -e "${YELLOW}⚠${NC}  $1"; }
 fail() { echo -e "${RED}✘${NC} $1"; }
 
 echo ""
-echo "notion-autotrader setup"
+echo "notion-claude-integration setup"
 echo "========================"
 echo ""
 
@@ -108,10 +108,9 @@ fi
 
 echo ""
 echo "========================"
-echo "Next steps:"
-echo "  1. Fix any ✘ items above"
-echo "  2. Start a Cloudflare tunnel: cloudflared tunnel --url http://localhost:8788"
-echo "  3. Add the tunnel URL as a Notion webhook endpoint"
-echo "  4. Launch Claude: claude --channels"
-echo "  5. See docs/SETUP.md for the full guide"
 echo ""
+
+# --- Run Notion setup wizard ---
+echo "Running Notion setup wizard..."
+echo ""
+exec bun run "$SCRIPT_DIR/notion-setup.ts"
