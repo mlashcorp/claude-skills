@@ -1,20 +1,31 @@
 ---
 name: implement-feature
-description: Use when invoked via a Notion webhook channel event with Workflow="In Progress". Runs the full automated development cycle: navigate to project, branch, implement, test, commit, push, create PR, update Notion ticket to Review. Always invoke this skill when receiving a Notion channel event with page_id, project_folder, github_repo, title, and description context.
+description: Use when invoked via a Notion webhook channel event with Workflow="In Progress". Runs the full automated development cycle: navigate to project, branch, plan, implement with TDD, verify, commit, push, create PR, update Notion ticket to Review. Always invoke this skill when receiving a Notion channel event with page_id, project_folder, github_repo, title, and description context.
 ---
 
 # Implement Feature
 
 Fully automated development cycle triggered by a Notion ticket reaching "In Progress" status.
 
+**This skill runs without any human interaction.** Every decision must be made autonomously. When blocked, post a Notion comment and stop — do not wait for input.
+
 You will be given this context when the skill is invoked:
 - `page_id` — Notion page UUID
-- `project_folder` — subfolder name under the projects root
+- `project_folder` — subfolder name under `${CLAUDE_PROJECTS_ROOT:-$HOME/projects}`
 - `github_repo` — `owner/repo` string
-- `title` — ticket title (used as branch name and commit message)
+- `title` — ticket title
 - `description` — full task requirements and acceptance criteria
 
-The projects root is `${CLAUDE_PROJECTS_ROOT:-$HOME/projects}`. Users set the `CLAUDE_PROJECTS_ROOT` environment variable to point at the folder that contains all their projects.
+---
+
+## Before You Start: Validate Inputs
+
+Check that `project_folder`, `github_repo`, `title`, and `description` are all present and non-empty.
+
+If any are missing or the description is too vague to act on safely:
+1. Post a Notion comment: `"Claude: Cannot start — missing required fields: {list}. Please fill in and set Workflow back to In Progress."`
+2. Set `Workflow` back to `"In Progress"` via `notion-update-page`
+3. Stop immediately
 
 ---
 
@@ -27,50 +38,79 @@ git pull
 git checkout -b feat/notion-{first 8 chars of page_id}
 ```
 
-If `git pull` fails (e.g. merge conflict), stop and add a Notion comment explaining the blocker. Do not proceed.
+If `git pull` fails (merge conflict or dirty state): post a Notion comment explaining the exact error, set Workflow back to `"In Progress"`, and stop.
 
 ---
 
 ## Step 2: Understand the Codebase
 
-Before touching any code:
+Before planning or touching any code:
 
-1. Read `CLAUDE.md` if it exists — it contains build commands, architecture notes, and test instructions specific to this project
-2. Scan the top-level structure to understand the stack and patterns
-3. Identify files most likely to be affected by the ticket
+1. Read `CLAUDE.md` if it exists — it contains build commands, architecture notes, test instructions, and conventions specific to this project
+2. Scan the top-level structure to understand the stack, patterns, and test setup
+3. Identify which files are most likely to be affected by this ticket
 
-This context prevents you from implementing something that conflicts with the project's conventions.
-
----
-
-## Step 3: Implement
-
-Implement the feature described in `description`. Follow the project's existing patterns and conventions as observed in Step 2.
-
-Keep changes focused — do not refactor unrelated code or add features beyond what the ticket asks for.
+This is what makes the plan accurate. Skipping it leads to plans that conflict with existing conventions.
 
 ---
 
-## Step 4: Run Tests
+## Step 3: Write an Implementation Plan
 
-Check `CLAUDE.md` for the test command. If not found, detect from the project:
+Use **superpowers:writing-plans** with the Notion ticket as the spec.
 
-| Signal | Test command |
-|--------|-------------|
-| `pytest.ini` / `pyproject.toml` with `[tool.pytest]` | `python -m pytest` |
-| `package.json` with `"test"` script | `npm test` |
-| `Cargo.toml` | `cargo test` |
-| `Makefile` with `test` target | `make test` |
-| `requirements.txt` / `.py` files only | `python -m pytest` (try) |
+**Autonomous adaptations** (no user interaction available):
+- Skip the brainstorming prerequisite — the Notion ticket description IS the spec
+- Skip the user spec review gate — proceed to execution automatically after writing the plan
+- Skip the plan document reviewer subagent — proceed directly to execution
+- Save the plan to `docs/superpowers/plans/YYYY-MM-DD-{title}.md` in the project folder
 
-Run the tests. If they fail:
-1. Read the failure output and fix the issue
-2. Re-run once
-3. If still failing after one fix attempt: proceed to Step 5 but **flag the failure** in both the PR body and the Notion comment
+The plan must include:
+- File map (which files to create or modify)
+- Bite-sized tasks with exact commands, test steps, and commit points
+- TDD steps baked into every task (write failing test → verify red → implement → verify green → refactor)
 
 ---
 
-## Step 5: Commit and Push
+## Step 4: Execute the Plan with Fresh Subagents
+
+Use **superpowers:subagent-driven-development** to execute the plan.
+
+**Why subagents:** Each implementation task runs in a fresh subagent with isolated context. This keeps the main Claude session clean so it can receive and route future Notion webhook events without context pollution.
+
+**Autonomous adaptations:**
+- Skip the user review between tasks — proceed automatically after each spec compliance and code quality review
+- "Ask your human partner" situations → use best judgment; if genuinely blocked post a Notion comment and stop
+- Each implementer subagent must use **superpowers:test-driven-development**
+
+**Each subagent task follows TDD strictly:**
+1. Write the failing test first
+2. Run it — confirm it fails for the right reason
+3. Write minimal code to pass
+4. Run again — confirm it passes
+5. Refactor if needed, keeping tests green
+6. Commit
+
+No production code without a failing test first. No exceptions in autonomous mode.
+
+---
+
+## Step 5: Verify Before Completion
+
+Use **superpowers:verification-before-completion** before making any completion claims.
+
+Run the full test suite and confirm:
+- All tests pass (zero failures)
+- Output is clean (no errors or warnings)
+- Every requirement in the Notion ticket description is met
+
+Do not proceed to commit/push/PR if verification fails. If tests fail after implementation:
+1. Use **superpowers:systematic-debugging** to diagnose
+2. Fix and re-verify once
+3. If still failing: proceed to PR but flag clearly in both the PR body and the Notion comment
+
+---
+
+## Step 6: Commit and Push
 
 ```bash
 git add -A
@@ -80,7 +120,7 @@ git push -u origin feat/notion-{first 8 chars of page_id}
 
 ---
 
-## Step 6: Create Pull Request
+## Step 7: Create Pull Request
 
 Use the GitHub MCP `create_pull_request` tool:
 
@@ -103,7 +143,7 @@ Save the PR URL from the response.
 
 ---
 
-## Step 7: Update Notion
+## Step 8: Update Notion
 
 Use `notion-update-page` with `command="update_properties"`:
 ```
@@ -113,9 +153,9 @@ properties: {
 }
 ```
 
-Note: Use the `Workflow` Select property (not `Status`) — the built-in Notion Tasks `Status` property does not accept custom values via API.
+Note: Use the `Workflow` Select property (not `Status`) — the built-in Notion Tasks `Status` does not accept custom values via API.
 
-Then use `notion-create-comment` to add a page comment:
+Then use `notion-create-comment` to post:
 ```
 Claude: PR ready for review: {PR URL}
 
@@ -127,7 +167,10 @@ What was implemented: {1-2 sentence summary}
 
 ## Error Handling
 
-If anything blocks progress (git conflict, missing credentials, ambiguous requirements):
-1. Do not guess or proceed with incomplete information
-2. Add a Notion comment (prefixed with "Claude: ") describing exactly what's blocking and what information is needed
-3. Stop — the user can reply to the comment with clarification and Claude will pick it up via the comment.created webhook
+When anything blocks progress:
+1. **Do not guess** or proceed with incomplete information
+2. **Post a Notion comment** prefixed with `"Claude: "` — describe exactly what's blocking and what's needed to unblock it
+3. **Set Workflow back to `"In Progress"`** via `notion-update-page` so the ticket stays visible
+4. **Stop** — the user can reply to the comment and Claude will pick it up via `comment.created` webhook
+
+Treat ambiguity as a blocker, not a license to guess.
