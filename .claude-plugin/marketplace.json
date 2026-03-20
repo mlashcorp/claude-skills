@@ -1,0 +1,26 @@
+{
+  "name": "notion-autotrader",
+  "owner": {
+    "name": "mlashcorp"
+  },
+  "metadata": {
+    "description": "Claude Code skills for automating software development from Notion tickets.",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "notion-autotrader",
+      "source": "./plugins/notion-autotrader",
+      "description": "Automates the full dev cycle from Notion. Moving a ticket to In Progress triggers Claude to branch, implement, test, open a PR, and update the ticket automatically.",
+      "version": "1.0.0",
+      "author": {
+        "name": "mlashcorp"
+      },
+      "homepage": "https://github.com/mlashcorp/claude-skills",
+      "repository": "https://github.com/mlashcorp/claude-skills",
+      "license": "MIT",
+      "category": "productivity",
+      "tags": ["notion", "github", "automation", "webhook", "sdlc"]
+    }
+  ]
+}
