@@ -73,6 +73,39 @@ def fetch_page_properties(page_id: str) -> dict | None:
         return None
 
 
+def fetch_property_item(page_id: str, property_id: str, property_name: str) -> str | None:
+    """Fetch a single property via the property item endpoint (needed for rollups)."""
+    section(f"📡 Notion API: GET /v1/pages/{page_id}/properties/{property_id} ({property_name})")
+    req = urllib.request.Request(
+        f"https://api.notion.com/v1/pages/{page_id}/properties/{property_id}",
+        headers={
+            "Authorization": f"Bearer {NOTION_TOKEN}",
+            "Notion-Version": NOTION_VERSION,
+        },
+    )
+    try:
+        with urllib.request.urlopen(req) as resp:
+            data = json.loads(resp.read())
+            print(f"✅ HTTP {resp.status}", flush=True)
+            print(json.dumps(data, indent=2), flush=True)
+            # Property item endpoint returns {"object": "list", "results": [...]} for rollups
+            results = data.get("results") or []
+            for item in results:
+                val = get_property_value({"_": item}, "_")
+                if val:
+                    return val
+            # Or a single property_item object
+            val = get_property_value({"_": data}, "_")
+            return val
+    except urllib.error.HTTPError as e:
+        body = e.read().decode()
+        print(f"❌ HTTP {e.code}: {body}", flush=True)
+        return None
+    except Exception as e:
+        print(f"❌ Request failed: {e}", flush=True)
+        return None
+
+
 def get_property_value(props: dict, name: str) -> str | None:
     prop = props.get(name)
     if not prop:
@@ -86,10 +119,21 @@ def get_property_value(props: dict, name: str) -> str | None:
         return prop.get("url")
     if t == "rich_text":
         items = prop.get("rich_text") or []
+        if isinstance(items, dict):  # property item endpoint returns a dict, not array
+            return items.get("plain_text")
         return items[0].get("plain_text") if items else None
     if t == "title":
         items = prop.get("title") or []
+        if isinstance(items, dict):
+            return items.get("plain_text")
         return items[0].get("plain_text") if items else None
+    if t == "rollup":
+        # show_original rollups return an array of the underlying property objects
+        for item in prop.get("rollup", {}).get("array") or []:
+            val = get_property_value({"_": item}, "_")
+            if val:
+                return val
+        return None
     return None
 
 
@@ -138,16 +182,25 @@ class Handler(BaseHTTPRequestHandler):
 
             # Fetch page and check Status + GitHub PR
             if page_id and NOTION_TOKEN:
-                import time
-                print("⏳ Waiting 1.5s for Notion to propagate the change...", flush=True)
-                time.sleep(1.5)
                 props = fetch_page_properties(page_id)
                 if props is not None:
                     workflow = get_property_value(props, "Workflow")
                     github_pr = get_property_value(props, "GitHub PR")
+
+                    # Rollups return empty arrays in the main page fetch — use property item endpoint
+                    for prop_name in ("Project Folder", "GitHub Repo"):
+                        prop = props.get(prop_name, {})
+                        if prop.get("type") == "rollup" and not prop.get("rollup", {}).get("array"):
+                            prop_id = prop.get("id", "")
+                            val = fetch_property_item(page_id, prop_id, prop_name)
+                            if val:
+                                props[prop_name] = {"type": "rich_text", "rich_text": [{"plain_text": val}]}
+
                     section(f"🔍 Filter check")
-                    print(f"  Workflow  : {workflow!r}", flush=True)
-                    print(f"  GitHub PR : {github_pr!r}", flush=True)
+                    print(f"  Workflow      : {workflow!r}", flush=True)
+                    print(f"  GitHub PR     : {github_pr!r}", flush=True)
+                    print(f"  Project Folder: {get_property_value(props, 'Project Folder')!r}", flush=True)
+                    print(f"  GitHub Repo   : {get_property_value(props, 'GitHub Repo')!r}", flush=True)
                     if workflow == "In Progress" and not github_pr:
                         section("✅ WOULD FORWARD TO CLAUDE — implement-feature")
                     elif workflow == "Done":

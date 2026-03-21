@@ -46,7 +46,39 @@ async function fetchPageProperties(pageId: string): Promise<Record<string, any> 
     return null
   }
   const data = await res.json() as any
-  return data.properties ?? null
+  const props = data.properties ?? null
+  if (!props) return null
+
+  // Rollups return empty arrays in the main page fetch — resolve via property item endpoint
+  for (const name of ['Project Folder', 'GitHub Repo']) {
+    const prop = props[name]
+    if (prop?.type === 'rollup' && prop.rollup?.array?.length === 0) {
+      const val = await fetchPropertyItem(pageId, prop.id, name)
+      if (val) props[name] = { type: 'rich_text', rich_text: [{ plain_text: val }] }
+    }
+  }
+  return props
+}
+
+async function fetchPropertyItem(pageId: string, propertyId: string, name: string): Promise<string | null> {
+  const res = await fetch(`https://api.notion.com/v1/pages/${pageId}/properties/${encodeURIComponent(propertyId)}`, {
+    headers: {
+      'Authorization': `Bearer ${NOTION_TOKEN}`,
+      'Notion-Version': NOTION_VERSION,
+    },
+  })
+  if (!res.ok) {
+    console.error(`[notion-webhook] Failed to fetch property ${name} (${propertyId}): ${res.status}`)
+    return null
+  }
+  const data = await res.json() as any
+  // Rollup property items return {"object":"list","results":[...]}
+  const results: any[] = data.results ?? []
+  for (const item of results) {
+    const val = getPropertyValue({ _: item }, '_')
+    if (val) return val
+  }
+  return null
 }
 
 function getPropertyValue(props: Record<string, any>, name: string): string | null {
@@ -55,8 +87,26 @@ function getPropertyValue(props: Record<string, any>, name: string): string | nu
   if (prop.type === 'status') return prop.status?.name ?? null
   if (prop.type === 'select') return prop.select?.name ?? null
   if (prop.type === 'url') return prop.url ?? null
-  if (prop.type === 'rich_text') return prop.rich_text?.[0]?.plain_text ?? null
-  if (prop.type === 'title') return prop.title?.[0]?.plain_text ?? null
+  if (prop.type === 'rich_text') {
+    // page endpoint returns array; property item endpoint returns dict
+    const rt = prop.rich_text
+    if (Array.isArray(rt)) return rt[0]?.plain_text ?? null
+    return rt?.plain_text ?? null
+  }
+  if (prop.type === 'title') {
+    const t = prop.title
+    if (Array.isArray(t)) return t[0]?.plain_text ?? null
+    return t?.plain_text ?? null
+  }
+  if (prop.type === 'rollup') {
+    // show_original rollups return an array of the underlying property objects
+    const arr = prop.rollup?.array ?? []
+    for (const item of arr) {
+      const val = getPropertyValue({ _: item } as any, '_')
+      if (val) return val
+    }
+    return null
+  }
   return null
 }
 
@@ -174,8 +224,6 @@ Bun.serve({
         return new Response('Ignored', { status: 200 })
       }
       if (pageId && NOTION_TOKEN) {
-        // Brief delay to let Notion propagate the property change before we read it
-        await new Promise(resolve => setTimeout(resolve, 1500))
         const props = await fetchPageProperties(pageId)
         if (props) {
           const workflow = getPropertyValue(props, 'Workflow')

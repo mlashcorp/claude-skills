@@ -90,9 +90,21 @@ Create or open a Notion database for your tasks. Add these properties:
 | `Task name` | Title | Built-in — the ticket title |
 | `Summary` | Text | Task description and requirements for Claude |
 | `Workflow` | Select | Automation state — options: `Not Started`, `In Progress`, `Review`, `Done` |
-| `Project Folder` | Text | Subfolder name under your projects root (e.g. `my-app`) |
-| `GitHub Repo` | Text | `owner/repo` format (e.g. `alice/my-app`) |
+| `Project Folder` | Rollup | Auto-filled from linked project (see below) |
+| `GitHub Repo` | Rollup | Auto-filled from linked project (see below) |
 | `GitHub PR` | URL | Left blank — Claude fills this in after opening the PR |
+| `Project` | Relation → Projects DB | Links the task to a project |
+
+#### Auto-filling Project Folder and GitHub Repo
+
+Instead of filling these in manually on every task, link each task to a **Projects** database row and use rollups to pull the values automatically.
+
+1. Create a **Projects** database with columns: `Project name` (Title), `Project Folder` (Text), `GitHub Repo` (Text)
+2. Add one row per project (e.g. `my-app`, `my-app`, `alice/my-app`)
+3. In your Tasks database, add a **Relation** property pointing to the Projects database, and two **Rollup** properties (`Project Folder` and `GitHub Repo`) that pull from the linked project
+4. Make sure your integration has **Connections** access to the Projects database too
+
+Now you just set the `Project` relation on a task and both fields populate automatically.
 
 > **Why a `Workflow` Select property instead of the built-in `Status`?**
 > Notion's built-in Tasks database `Status` property only accepts "Not Started", "Done", and "Archived" via the API — custom options like "Review" can't be written back programmatically. A custom Select property has no such limitation.
