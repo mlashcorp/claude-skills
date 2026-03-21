@@ -31,12 +31,17 @@ If any are missing or the description is too vague to act on safely:
 
 ## Step 1: Navigate and Branch
 
+Generate a branch slug from the title: lowercase, replace spaces and special characters with hyphens, strip leading/trailing hyphens, max 40 chars.
+Example: "Add pagination to trade history" → `add-pagination-to-trade-history`
+
 ```bash
 cd ${CLAUDE_PROJECTS_ROOT:-$HOME/projects}/{project_folder}
 git checkout main
 git pull
-git checkout -b feat/notion-{first 8 chars of page_id}
+git checkout -b feat/{slug}
 ```
+
+If the branch already exists, check it out and continue from where it left off rather than failing.
 
 If `git pull` fails (merge conflict or dirty state): post a Notion comment explaining the exact error, set Workflow back to `"In Progress"`, and stop.
 
@@ -115,7 +120,7 @@ Do not proceed to commit/push/PR if verification fails. If tests fail after impl
 ```bash
 git add -A
 git commit -m "feat: {title}"
-git push -u origin feat/notion-{first 8 chars of page_id}
+git push -u origin feat/{slug}
 ```
 
 ---
@@ -125,7 +130,7 @@ git push -u origin feat/notion-{first 8 chars of page_id}
 Use the GitHub MCP `create_pull_request` tool:
 
 - **owner/repo**: from `github_repo`
-- **head**: `feat/notion-{first 8 chars of page_id}`
+- **head**: `feat/{slug}`
 - **base**: `main`
 - **title**: `{title}`
 - **body**:

@@ -169,6 +169,24 @@ function appendToProfile(profile: string, lines: string[]) {
   appendFileSync(profile, block)
 }
 
+function writeClaudeSettings(vars: Array<{ key: string; value: string }>) {
+  // Write env vars to ~/.claude/settings.json so Claude Code sessions pick them
+  // up immediately without requiring a shell restart
+  const settingsPath = `${homedir()}/.claude/settings.json`
+  let settings: Record<string, any> = {}
+  try {
+    settings = JSON.parse(readFileSync(settingsPath, 'utf8'))
+  } catch {
+    // File doesn't exist yet — start fresh
+  }
+  if (!settings.env) settings.env = {}
+  for (const { key, value } of vars) {
+    settings.env[key] = value
+  }
+  writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n')
+}
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -456,6 +474,8 @@ async function main() {
       appendToProfile(profile, vars.map(v => `export ${v.key}="${v.value}"`))
       ok(`Saved to ${profile}`)
       warn(`Run: source ${profile}   (or open a new terminal)`)
+      writeClaudeSettings(vars.filter(v => v.key === 'CLAUDE_PROJECTS_ROOT'))
+      ok('Also saved CLAUDE_PROJECTS_ROOT to ~/.claude/settings.json (takes effect in new Claude Code sessions)')
     } else {
       warn('Skipped — add these to your shell profile manually:')
       for (const v of vars) print(`   export ${v.key}="${v.value}"`)
